@@ -11,7 +11,7 @@ MessageHandler, filters, ContextTypes
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(**name**)
 
-TELEGRAM_TOKEN = “7699128682:AAGs7di2GFw1PNYd6u-JJ0he3jEv3jj_gdA”
+TELEGRAM_TOKEN = os.environ[“TELEGRAM_TOKEN”]
 CHANNEL_ID     = -1001003618409425
 
 BANK_NAME    = “البنك الأهلي السعودي”
@@ -26,8 +26,6 @@ PLANS = {
 }
 
 DB_FILE = “db.json”
-
-# ─── DB ───────────────────────────────────────────────────────────────────────
 
 def load_db():
 if os.path.exists(DB_FILE):
@@ -47,8 +45,6 @@ db = load_db()
 db[“admin_id”] = uid
 save_db(db)
 
-# ─── Keyboards ────────────────────────────────────────────────────────────────
-
 def phone_keyboard():
 btn = KeyboardButton(“📱 مشاركة رقم جوالي”, request_contact=True)
 return ReplyKeyboardMarkup([[btn]], resize_keyboard=True, one_time_keyboard=True)
@@ -65,86 +61,59 @@ return InlineKeyboardMarkup([
 [InlineKeyboardButton(“📊 حالة اشتراكي”, callback_data=“status”)],
 ])
 
-# ─── /start ───────────────────────────────────────────────────────────────────
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 user = update.effective_user
 db   = load_db()
 uid  = str(user.id)
-
-```
-# إذا مسجّل مسبقاً اعرض القائمة مباشرة
-if uid in db.get("verified", {}):
-    await update.message.reply_text(
-        f"أهلاً {user.first_name}! 👋\n\n"
-        "مرحباً بك في قناة *عقود الأوبشن* 📈\n\n"
-        "اشترك الآن للحصول على:\n"
-        "• ✅ إشارات يومية احترافية\n"
-        "• 📊 تحليلات دقيقة لعقود الأوبشن\n"
-        "• 🔔 تنبيهات فورية\n\n"
-        "اختر من القائمة:",
-        parse_mode="Markdown",
-        reply_markup=main_keyboard()
-    )
+if uid in db.get(“verified”, {}):
+await update.message.reply_text(
+f”أهلاً {user.first_name}! 👋\n\n”
+“مرحباً بك في قناة *عقود الأوبشن* 📈\n\n”
+“اشترك الآن للحصول على:\n”
+“• ✅ إشارات يومية احترافية\n”
+“• 📊 تحليلات دقيقة لعقود الأوبشن\n”
+“• 🔔 تنبيهات فورية\n\n”
+“اختر من القائمة:”,
+parse_mode=“Markdown”,
+reply_markup=main_keyboard()
+)
 else:
-    # طلب رقم الجوال أولاً
-    await update.message.reply_text(
-        f"أهلاً {user.first_name}! 👋\n\n"
-        "للمتابعة نحتاج التحقق من هويتك.\n\n"
-        "📱 اضغط الزر أدناه لمشاركة رقم جوالك:",
-        parse_mode="Markdown",
-        reply_markup=phone_keyboard()
-    )
-```
-
-# ─── استقبال رقم الجوال ───────────────────────────────────────────────────────
+await update.message.reply_text(
+f”أهلاً {user.first_name}! 👋\n\n”
+“للمتابعة نحتاج التحقق من هويتك.\n\n”
+“📱 اضغط الزر أدناه لمشاركة رقم جوالك:”,
+parse_mode=“Markdown”,
+reply_markup=phone_keyboard()
+)
 
 async def receive_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 user    = update.effective_user
 contact = update.message.contact
 db      = load_db()
 uid     = str(user.id)
-
-```
-# تأكد أن الشخص يشارك رقمه هو وليس رقم غيره
 if contact.user_id != user.id:
-    await update.message.reply_text(
-        "⚠️ يرجى مشاركة رقم جوالك الخاص فقط.",
-        reply_markup=phone_keyboard()
-    )
-    return
-
-# حفظ بياناته
-if "verified" not in db:
-    db["verified"] = {}
-
-db["verified"][uid] = {
-    "phone": contact.phone_number,
-    "full_name": user.full_name,
-    "username": user.username or "",
-    "verified_at": datetime.now().isoformat()
+await update.message.reply_text(“⚠️ يرجى مشاركة رقم جوالك الخاص فقط.”, reply_markup=phone_keyboard())
+return
+if “verified” not in db:
+db[“verified”] = {}
+db[“verified”][uid] = {
+“phone”: contact.phone_number,
+“full_name”: user.full_name,
+“username”: user.username or “”,
+“verified_at”: datetime.now().isoformat()
 }
 save_db(db)
-
+await update.message.reply_text(“✅ *تم التحقق بنجاح!*\n\nأهلاً بك 🎉”, parse_mode=“Markdown”, reply_markup=ReplyKeyboardRemove())
 await update.message.reply_text(
-    "✅ *تم التحقق بنجاح!*\n\nأهلاً بك 🎉",
-    parse_mode="Markdown",
-    reply_markup=ReplyKeyboardRemove()
+“مرحباً بك في قناة *عقود الأوبشن* 📈\n\n”
+“اشترك الآن للحصول على:\n”
+“• ✅ إشارات يومية احترافية\n”
+“• 📊 تحليلات دقيقة لعقود الأوبشن\n”
+“• 🔔 تنبيهات فورية\n\n”
+“اختر من القائمة:”,
+parse_mode=“Markdown”,
+reply_markup=main_keyboard()
 )
-
-await update.message.reply_text(
-    "مرحباً بك في قناة *عقود الأوبشن* 📈\n\n"
-    "اشترك الآن للحصول على:\n"
-    "• ✅ إشارات يومية احترافية\n"
-    "• 📊 تحليلات دقيقة لعقود الأوبشن\n"
-    "• 🔔 تنبيهات فورية\n\n"
-    "اختر من القائمة:",
-    parse_mode="Markdown",
-    reply_markup=main_keyboard()
-)
-```
-
-# ─── Buttons ──────────────────────────────────────────────────────────────────
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 query = update.callback_query
@@ -155,7 +124,6 @@ db    = load_db()
 uid   = str(user.id)
 
 ```
-# تحقق أن المستخدم سجّل رقمه
 if uid not in db.get("verified", {}) and not data.startswith(("approve_", "reject_")):
     await query.answer("يرجى إرسال /start أولاً للتحقق من رقمك.", show_alert=True)
     return
@@ -171,11 +139,11 @@ elif data.startswith("plan_"):
     key  = data.replace("plan_", "")
     plan = PLANS[key]
     db["pending"][uid] = {
-        "plan_key":    key,
-        "full_name":   user.full_name,
-        "username":    user.username or "",
-        "phone":       db["verified"].get(uid, {}).get("phone", "—"),
-        "status":      "awaiting_receipt",
+        "plan_key": key,
+        "full_name": user.full_name,
+        "username": user.username or "",
+        "phone": db["verified"].get(uid, {}).get("phone", "—"),
+        "status": "awaiting_receipt",
         "requested_at": datetime.now().isoformat()
     }
     save_db(db)
@@ -189,9 +157,7 @@ elif data.startswith("plan_"):
         f"أرسل صورة إيصال التحويل هنا وسيتم مراجعتها خلال دقائق.\n\n"
         f"⚠️ تأكد أن اسمك ظاهر في الإيصال.",
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔙 رجوع", callback_data="subscribe")
-        ]])
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="subscribe")]])
     )
 
 elif data == "status":
@@ -221,7 +187,6 @@ elif data.startswith("approve_"):
     plan_key = parts[2]
     plan     = PLANS[plan_key]
     expires  = datetime.now() + timedelta(days=plan["months"] * 30)
-
     db["subscribers"][uid] = {
         "plan_key":     plan_key,
         "expires_at":   expires.isoformat(),
@@ -229,45 +194,37 @@ elif data.startswith("approve_"):
     }
     db["pending"].pop(uid, None)
     save_db(db)
-
-    # توليد رابط دعوة خاص — استخدام مرة واحدة
     invite_url = None
     try:
         link = await context.bot.create_chat_invite_link(
             chat_id=CHANNEL_ID,
             member_limit=1,
             expire_date=int(expires.timestamp()),
-            creates_join_request=False,
             name=f"sub_{uid}"
         )
         invite_url = link.invite_link
-        logger.info(f"Invite link created for {uid}: {invite_url}")
+        logger.info(f"Invite link for {uid}: {invite_url}")
     except Exception as e:
         logger.error(f"Invite link error for {uid}: {e}")
-
     if invite_url:
         msg = (
             f"🎉 *تم تأكيد اشتراكك!*\n\n"
             f"• الخطة: {plan['label']}\n"
             f"• ينتهي في: {expires.strftime('%Y/%m/%d')}\n\n"
             f"🔗 *رابط دخولك الخاص:*\n{invite_url}\n\n"
-            f"⚠️ هذا الرابط خاص بك فقط ويُستخدم مرة واحدة.\n"
-            f"لا تشاركه مع أحد."
+            f"⚠️ هذا الرابط خاص بك فقط ويُستخدم مرة واحدة. لا تشاركه."
         )
+        admin_note = f"✅ تم قبول `{uid}` — {plan['label']}\n🔗 تم إرسال الرابط"
     else:
         msg = (
             f"🎉 *تم تأكيد اشتراكك!*\n\n"
             f"• الخطة: {plan['label']}\n"
             f"• ينتهي في: {expires.strftime('%Y/%m/%d')}\n\n"
-            f"⏳ سيتم إضافتك للقناة خلال دقائق، تواصل مع الأدمن إذا تأخر."
+            f"⏳ سيتم إضافتك للقناة خلال دقائق."
         )
-
+        admin_note = f"✅ تم قبول `{uid}` — {plan['label']}\n⚠️ فشل توليد الرابط — أضف يدوياً"
     await context.bot.send_message(chat_id=int(uid), text=msg, parse_mode="Markdown")
-    await query.edit_message_text(
-        f"✅ تم قبول اشتراك `{uid}` — خطة {plan['label']}\n"
-        f"{'🔗 تم إرسال الرابط' if invite_url else '⚠️ فشل توليد الرابط — أضف يدوياً'}",
-        parse_mode="Markdown"
-    )
+    await query.edit_message_text(admin_note, parse_mode="Markdown")
 
 elif data.startswith("reject_"):
     if str(user.id) != str(get_admin()):
@@ -284,79 +241,53 @@ elif data.startswith("reject_"):
     await query.edit_message_text(f"❌ تم رفض طلب `{uid}`", parse_mode="Markdown")
 ```
 
-# ─── استقبال الإيصال ──────────────────────────────────────────────────────────
-
 async def receive_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 user    = update.effective_user
 db      = load_db()
 uid     = str(user.id)
-
-```
-# تحقق من التسجيل
-if uid not in db.get("verified", {}):
-    await update.message.reply_text("📌 أرسل /start أولاً للتحقق من رقمك.")
-    return
-
-pending = db["pending"].get(uid)
-if not pending or pending.get("status") not in ("awaiting_receipt", "receipt_sent"):
-    await update.message.reply_text("📌 لا يوجد طلب اشتراك مفتوح.\nاضغط /start للبدء.")
-    return
-
+if uid not in db.get(“verified”, {}):
+await update.message.reply_text(“📌 أرسل /start أولاً للتحقق من رقمك.”)
+return
+pending = db[“pending”].get(uid)
+if not pending or pending.get(“status”) not in (“awaiting_receipt”, “receipt_sent”):
+await update.message.reply_text(“📌 لا يوجد طلب اشتراك مفتوح.\nاضغط /start للبدء.”)
+return
 admin_id = get_admin()
 if not admin_id:
-    await update.message.reply_text("⚠️ تواصل مع الدعم مباشرة.")
-    return
-
-plan     = PLANS[pending["plan_key"]]
-plan_key = pending["plan_key"]
-phone    = db["verified"].get(uid, {}).get("phone", "—")
-
-caption = (
-    f"📥 *طلب اشتراك جديد*\n\n"
-    f"👤 الاسم: {user.full_name}\n"
-    f"📱 الجوال: `{phone}`\n"
-    f"🆔 ID: `{uid}`\n"
-    f"📦 الخطة: {plan['label']} — {plan['price']} ريال\n"
-    f"🕐 الوقت: {datetime.now().strftime('%Y/%m/%d %H:%M')}"
+await update.message.reply_text(“⚠️ تواصل مع الدعم مباشرة.”)
+return
+plan     = PLANS[pending[“plan_key”]]
+plan_key = pending[“plan_key”]
+phone    = db[“verified”].get(uid, {}).get(“phone”, “—”)
+caption  = (
+f”📥 *طلب اشتراك جديد*\n\n”
+f”👤 الاسم: {user.full_name}\n”
+f”📱 الجوال: `{phone}`\n”
+f”🆔 ID: `{uid}`\n”
+f”📦 الخطة: {plan[‘label’]} — {plan[‘price’]} ريال\n”
+f”🕐 الوقت: {datetime.now().strftime(’%Y/%m/%d %H:%M’)}”
 )
 kb = InlineKeyboardMarkup([[
-    InlineKeyboardButton("✅ قبول وإرسال رابط", callback_data=f"approve_{uid}_{plan_key}"),
-    InlineKeyboardButton("❌ رفض", callback_data=f"reject_{uid}"),
+InlineKeyboardButton(“✅ قبول وإرسال رابط”, callback_data=f”approve_{uid}*{plan_key}”),
+InlineKeyboardButton(“❌ رفض”, callback_data=f”reject*{uid}”),
 ]])
-
 if update.message.photo:
-    await context.bot.send_photo(
-        chat_id=admin_id, photo=update.message.photo[-1].file_id,
-        caption=caption, parse_mode="Markdown", reply_markup=kb
-    )
+await context.bot.send_photo(chat_id=admin_id, photo=update.message.photo[-1].file_id, caption=caption, parse_mode=“Markdown”, reply_markup=kb)
 elif update.message.document:
-    await context.bot.send_document(
-        chat_id=admin_id, document=update.message.document.file_id,
-        caption=caption, parse_mode="Markdown", reply_markup=kb
-    )
+await context.bot.send_document(chat_id=admin_id, document=update.message.document.file_id, caption=caption, parse_mode=“Markdown”, reply_markup=kb)
 else:
-    await update.message.reply_text("📎 أرسل صورة الإيصال من فضلك.")
-    return
-
-db["pending"][uid]["status"] = "receipt_sent"
+await update.message.reply_text(“📎 أرسل صورة الإيصال من فضلك.”)
+return
+db[“pending”][uid][“status”] = “receipt_sent”
 save_db(db)
-await update.message.reply_text(
-    "✅ *تم استلام إيصالك!*\n\nسيتم مراجعته وتفعيل اشتراكك خلال دقائق. 🙏",
-    parse_mode="Markdown"
-)
-```
-
-# ─── Admin commands ────────────────────────────────────────────────────────────
+await update.message.reply_text(“✅ *تم استلام إيصالك!*\n\nسيتم مراجعته وتفعيل اشتراكك خلال دقائق. 🙏”, parse_mode=“Markdown”)
 
 async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 uid     = update.effective_user.id
 current = get_admin()
 if current is None:
 set_admin(uid)
-await update.message.reply_text(
-f”✅ تم تسجيلك كأدمن!\nID: `{uid}`”,
-parse_mode=“Markdown”
-)
+await update.message.reply_text(f”✅ تم تسجيلك كأدمن!\nID: `{uid}`”, parse_mode=“Markdown”)
 elif current == uid:
 await update.message.reply_text(f”✅ أنت الأدمن.\nID: `{uid}`”, parse_mode=“Markdown”)
 else:
@@ -370,7 +301,7 @@ subs = db.get(“subscribers”, {})
 if not subs:
 await update.message.reply_text(“لا يوجد مشتركين حالياً.”)
 return
-lines = [“📋 *المشتركون النشطون:*\n”]
+lines = [“📋 *المشتركون:*\n”]
 for uid, s in subs.items():
 exp   = datetime.fromisoformat(s[“expires_at”])
 days  = (exp - datetime.now()).days
@@ -379,36 +310,26 @@ st    = f”{days} يوم متبقي” if days > 0 else “⚠️ منتهي”
 lines.append(f”• `{uid}` | 📱{phone} | {PLANS[s[‘plan_key’]][‘label’]} | {st}”)
 await update.message.reply_text(”\n”.join(lines), parse_mode=“Markdown”)
 
-# ─── Scheduler ────────────────────────────────────────────────────────────────
-
 async def check_expired(context: ContextTypes.DEFAULT_TYPE):
 db        = load_db()
 subs      = db.get(“subscribers”, {})
 now       = datetime.now()
-to_remove = [uid for uid, s in subs.items()
-if now >= datetime.fromisoformat(s[“expires_at”])]
-
-```
+to_remove = [uid for uid, s in subs.items() if now >= datetime.fromisoformat(s[“expires_at”])]
 for uid in to_remove:
-    try:
-        await context.bot.ban_chat_member(chat_id=CHANNEL_ID, user_id=int(uid))
-        await context.bot.unban_chat_member(chat_id=CHANNEL_ID, user_id=int(uid))
-        await context.bot.send_message(
-            chat_id=int(uid),
-            text="⏰ *انتهى اشتراكك*\n\nتم إزالتك من القناة تلقائياً.\nجدّد اشتراكك للاستمرار 👇",
-            parse_mode="Markdown",
-            reply_markup=main_keyboard()
-        )
-    except Exception as e:
-        logger.error(f"Error removing {uid}: {e}")
-    del db["subscribers"][uid]
-
+try:
+await context.bot.ban_chat_member(chat_id=CHANNEL_ID, user_id=int(uid))
+await context.bot.unban_chat_member(chat_id=CHANNEL_ID, user_id=int(uid))
+await context.bot.send_message(
+chat_id=int(uid),
+text=“⏰ *انتهى اشتراكك*\n\nتم إزالتك من القناة تلقائياً.\nجدّد اشتراكك للاستمرار 👇”,
+parse_mode=“Markdown”,
+reply_markup=main_keyboard()
+)
+except Exception as e:
+logger.error(f”Error removing {uid}: {e}”)
+del db[“subscribers”][uid]
 if to_remove:
-    save_db(db)
-    logger.info(f"Removed {len(to_remove)} expired subscribers")
-```
-
-# ─── Main ──────────────────────────────────────────────────────────────────────
+save_db(db)
 
 def main():
 app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
@@ -419,7 +340,7 @@ app.add_handler(MessageHandler(filters.CONTACT, receive_contact))
 app.add_handler(CallbackQueryHandler(button_handler))
 app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, receive_receipt))
 app.job_queue.run_repeating(check_expired, interval=3600, first=10)
-print(“✅ البوت شغّال!”)
+print(“Bot started!”)
 app.run_polling()
 
 if **name** == “**main**”:
