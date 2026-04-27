@@ -4,7 +4,6 @@ import json
 import logging
 import asyncio
 import httpx
-import websockets
 from datetime import datetime
 from aiohttp import web
 import pytz
