@@ -163,7 +163,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         save_db(db)
 
-        # ── رسالة التفعيل بدون رابط ──
         expires_str = expires.strftime('%Y/%m/%d الساعة %H:%M')
         msg = (
             f"🎁 *تم تفعيل فترة التجربة المجانية!*\n\n"
@@ -173,7 +172,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await query.edit_message_text(msg, parse_mode="Markdown")
 
-        # ── إضافة للقناة تلقائياً — رابط صالح 5 دقائق فقط ──
         try:
             link_expire = datetime.now() + timedelta(minutes=5)
             link = await context.bot.create_chat_invite_link(
@@ -194,7 +192,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Trial invite error for {uid}: {e}")
 
-        # ── إشعار الأدمن ──
         admin_id = get_admin()
         if admin_id:
             phone = db.get("verified", {}).get(uid, {}).get("phone", "—")
@@ -368,8 +365,46 @@ async def receive_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db(db)
     await update.message.reply_text("✅ *تم استلام إيصالك!*\n\nسيتم مراجعته وتفعيل اشتراكك خلال دقائق. 🙏", parse_mode="Markdown")
 
+async def check_now_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != str(get_admin()):
+        return
+    await update.message.reply_text("⏳ جاري فحص المشتركين المنتهين...")
+    db        = load_db()
+    subs      = db.get("subscribers", {})
+    now       = datetime.now()
+    to_remove = [uid for uid, s in subs.items() if now >= datetime.fromisoformat(s["expires_at"])]
+    if not to_remove:
+        await update.message.reply_text("✅ لا يوجد مشتركون منتهون.")
+        return
+    removed = 0
+    for uid in to_remove:
+        try:
+            await context.bot.ban_chat_member(chat_id=CHANNEL_ID, user_id=int(uid))
+            await context.bot.unban_chat_member(chat_id=CHANNEL_ID, user_id=int(uid))
+            is_trial = db["subscribers"][uid].get("is_trial", False)
+            msg = (
+                "⏰ *انتهت فترة التجربة المجانية*\n\n"
+                "تم إزالتك من القناة.\n"
+                "اشترك الآن للاستمرار في الحصول على الإشارات 👇"
+            ) if is_trial else (
+                "⏰ *انتهى اشتراكك*\n\n"
+                "تم إزالتك من القناة تلقائياً.\n"
+                "جدّد اشتراكك للاستمرار 👇"
+            )
+            await context.bot.send_message(
+                chat_id=int(uid),
+                text=msg,
+                parse_mode="Markdown",
+                reply_markup=main_keyboard()
+            )
+            removed += 1
+        except Exception as e:
+            logger.error(f"Error removing {uid}: {e}")
+        del db["subscribers"][uid]
+    save_db(db)
+    await update.message.reply_text(f"✅ تم إزالة {removed} مشترك منتهٍ.")
+
 async def reset_trial_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """للاختبار فقط — يمسح التجربة المجانية للأدمن"""
     if str(update.effective_user.id) != str(get_admin()):
         return
     db  = load_db()
@@ -380,7 +415,6 @@ async def reset_trial_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ تم مسح التجربة — أرسل /start مجدداً")
 
 async def forceadmin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """تغيير الأدمن بالقوة"""
     uid = update.effective_user.id
     set_admin(uid)
     await update.message.reply_text(f"✅ تم تسجيلك كأدمن!\nID: `{uid}`", parse_mode="Markdown")
@@ -404,24 +438,20 @@ async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     subscribers = db.get("subscribers", {})
     trials      = db.get("trials", {})
     now         = datetime.now()
-
     total_users  = len(verified)
     total_trials = len(trials)
     active_subs  = [s for s in subscribers.values() if not s.get("is_trial") and now < datetime.fromisoformat(s["expires_at"])]
     expired_subs = [s for s in subscribers.values() if not s.get("is_trial") and now >= datetime.fromisoformat(s["expires_at"])]
-
     revenue = 0
     for s in subscribers.values():
         if not s.get("is_trial"):
             plan = PLANS.get(s.get("plan_key", ""), {})
             revenue += plan.get("price", 0)
-
     plan_counts = {}
     for s in subscribers.values():
         if not s.get("is_trial"):
             key = s.get("plan_key", "")
             plan_counts[key] = plan_counts.get(key, 0) + 1
-
     lines = [
         "📊 *إحصائيات البوت*\n",
         f"👥 إجمالي المستخدمين: {total_users}",
@@ -434,7 +464,6 @@ async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for key, count in plan_counts.items():
         plan = PLANS.get(key, {})
         lines.append(f"• {plan.get('label', key)}: {count} مشترك")
-
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 async def subs_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -493,12 +522,12 @@ async def delete_system_messages(update: Update, context: ContextTypes.DEFAULT_T
 
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("admin", admin_cmd))
-    app.add_handler(CommandHandler("subs",  subs_cmd))
-    app.add_handler(CommandHandler("stats", stats_cmd))
-    app.add_handler(CommandHandler("reset_trial", reset_trial_cmd))
-    app.add_handler(CommandHandler("forceadmin", forceadmin_cmd))
+    app.add_handler(CommandHandler("start",        start))
+    app.add_handler(CommandHandler("admin",        admin_cmd))
+    app.add_handler(CommandHandler("subs",         subs_cmd))
+    app.add_handler(CommandHandler("stats",        stats_cmd))
+    app.add_handler(CommandHandler("reset_trial",  reset_trial_cmd))
+    app.add_handler(CommandHandler("forceadmin",   forceadmin_cmd))
     app.add_handler(CommandHandler("checkexpired", check_now_cmd))
     app.add_handler(MessageHandler(filters.CONTACT, receive_contact))
     app.add_handler(CallbackQueryHandler(button_handler))
