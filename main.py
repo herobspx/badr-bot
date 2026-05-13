@@ -19,8 +19,8 @@ PUBLIC_CHANNEL = -1001934800979
 SUPPORT_USER   = "BAMSPX"
 
 BANK_NAME    = "البنك الأهلي السعودي"
-ACCOUNT_NAME = "بدر محمد الجعيد"
-IBAN         = "SA7010000088050617000103"
+ACCOUNT_NAME = "تم إيقاف الإشتراك مؤقت"
+IBAN         = "000000000000000000"
 
 PLANS = {
     "1m":  {"label": "شهري",   "months": 1,  "price": 200},
